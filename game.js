@@ -41,9 +41,9 @@ const bird = {
     x: 0,
     y: 0,
     velocity: 0,
-    gravity: 0.25,    // Reduced from 0.3 for even more control
-    jump: -7.5,       // Increased from -7 for higher jumps
-    maxVelocity: 6,   // Reduced from 7 to give more time to react
+    gravity: 0.28,    // Increased from 0.25 for slightly faster falling
+    jump: -7.2,       // Reduced from -7.5 for slightly lower jumps
+    maxVelocity: 6,   // Keep the same max fall speed
     width: 35,
     height: 50,
     jumpCooldown: 0,
