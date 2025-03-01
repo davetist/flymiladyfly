@@ -480,36 +480,53 @@ function drawGameOver(scores) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = 'white';
     
+    // Calculate responsive vertical spacing
+    const screenHeight = canvas.height;
+    const topMargin = screenHeight * 0.15; // Start at 15% from top
+    const lineSpacing = Math.min(25, screenHeight * 0.04); // Responsive line spacing
+    
+    let currentY = topMargin;
+    
     // Game Over text
-    ctx.font = '48px Arial';
+    const fontSize = Math.min(48, screenHeight * 0.07); // Responsive font size
+    ctx.font = `${fontSize}px Arial`;
     const gameOverText = 'Game Over!';
     const gameOverWidth = ctx.measureText(gameOverText).width;
-    ctx.fillText(gameOverText, (canvas.width - gameOverWidth) / 2, canvas.height/2 - 80);
+    ctx.fillText(gameOverText, (canvas.width - gameOverWidth) / 2, currentY);
     
     // Final Score text
-    ctx.font = '24px Arial';
+    currentY += fontSize;
+    const scoreFontSize = Math.min(24, screenHeight * 0.04);
+    ctx.font = `${scoreFontSize}px Arial`;
     const scoreText = `Final Score: ${score}`;
     const scoreWidth = ctx.measureText(scoreText).width;
-    ctx.fillText(scoreText, (canvas.width - scoreWidth) / 2, canvas.height/2 - 40);
+    ctx.fillText(scoreText, (canvas.width - scoreWidth) / 2, currentY);
     
     if (scores && scores.length > 0) {
-        // Draw leaderboard
-        ctx.font = '20px Arial';
-        ctx.fillText('Global Top 10:', (canvas.width - 100) / 2, canvas.height/2);
+        // Draw leaderboard header
+        currentY += lineSpacing * 1.5;
+        const leaderboardFontSize = Math.min(20, screenHeight * 0.035);
+        ctx.font = `${leaderboardFontSize}px Arial`;
+        ctx.fillText('Global Top 10:', (canvas.width - 100) / 2, currentY);
         
-        ctx.font = '16px Arial';
+        // Draw scores
+        currentY += lineSpacing;
+        const scoreFontSize = Math.min(16, screenHeight * 0.03);
+        ctx.font = `${scoreFontSize}px Arial`;
         scores.forEach((score, index) => {
             const text = `${index + 1}. ${score.name}: ${score.score}`;
             const textWidth = ctx.measureText(text).width;
-            ctx.fillText(text, (canvas.width - textWidth) / 2, canvas.height/2 + 30 + (index * 25));
+            ctx.fillText(text, (canvas.width - textWidth) / 2, currentY);
+            currentY += lineSpacing;
         });
     }
     
     // Restart text at bottom
-    ctx.font = '16px Arial';
+    const restartFontSize = Math.min(16, screenHeight * 0.03);
+    ctx.font = `${restartFontSize}px Arial`;
     const restartText = 'Press Space or Tap to Restart';
     const restartWidth = ctx.measureText(restartText).width;
-    ctx.fillText(restartText, (canvas.width - restartWidth) / 2, canvas.height - 40);
+    ctx.fillText(restartText, (canvas.width - restartWidth) / 2, screenHeight - lineSpacing * 2);
 }
 
 // Start the game
