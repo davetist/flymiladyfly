@@ -41,13 +41,13 @@ const bird = {
     x: 0,
     y: 0,
     velocity: 0,
-    gravity: 0.35,  // Reduced from 0.5 for less aggressive falling
-    jump: -6.5,    // Reduced from -8 for softer jumps
-    maxVelocity: 8, // Cap maximum fall speed
+    gravity: 0.25,    // Reduced from 0.3 for even more control
+    jump: -7.5,       // Increased from -7 for higher jumps
+    maxVelocity: 6,   // Reduced from 7 to give more time to react
     width: 35,
     height: 50,
-    jumpCooldown: 0, // Add cooldown to prevent rapid jumps
-    minJumpInterval: 150 // Minimum time between jumps in ms
+    jumpCooldown: 0,
+    minJumpInterval: 150
 };
 
 const pipes = [];
@@ -217,7 +217,7 @@ function update(timestamp, birdImage) {
     
     // Add slight upward boost when moving upward to maintain momentum
     if (bird.velocity < 0) {
-        bird.velocity *= 0.95; // Reduce upward velocity more gradually
+        bird.velocity *= 0.98; // Increased from 0.97 for even better upward momentum
     }
     
     bird.y += bird.velocity;
