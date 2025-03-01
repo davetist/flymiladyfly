@@ -90,6 +90,10 @@
 <body>
     <div id="start-screen">
         <h1 class="title">Fly Milady Fly!!</h1>
+        <div id="welcome-leaderboard" style="color: white; margin-bottom: 20px; text-align: center;">
+            <h2 style="font-size: 24px; margin-bottom: 10px;">Global Top 10</h2>
+            <div id="leaderboard-list" style="font-size: 16px; line-height: 1.5;"></div>
+        </div>
         <button class="start-button" disabled>Loading...</button>
     </div>
     <canvas id="gameCanvas" width="480" height="640"></canvas>
@@ -98,6 +102,8 @@
             <source src="assets/audio/audio.mp3" type="audio/mpeg">
         </audio>
     </div>
+    <script type="module" src="https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/11.4.0/firebase-database.js"></script>
     <script type="module" src="game.js"></script>
 </body>
 </html>

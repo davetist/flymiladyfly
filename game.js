@@ -1,4 +1,21 @@
 import { image as birdImageSrc } from './milady.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js';
+import { getDatabase, ref, push, query, orderByChild, limitToLast, get, onValue, set } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-database.js';
+
+// Firebase config
+const firebaseConfig = {
+    apiKey: "AIzaSyAq-UYNdeX3YY59HoVUbV5lq2QhI3zNNKQ",
+    authDomain: "flymiladyfly.firebaseapp.com",
+    projectId: "flymiladyfly",
+    storageBucket: "flymiladyfly.firebasestorage.app",
+    messagingSenderId: "699848211597",
+    appId: "1:699848211597:web:ef5599ba82dbc6ec51b6c4",
+    databaseURL: "https://flymiladyfly-default-rtdb.firebaseio.com"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -11,6 +28,7 @@ let canRestart = true;
 let score = 0;
 let highestScore = parseInt(getCookie('highScore')) || 0;
 let lastPipeSpawn = 0;
+let playerName = localStorage.getItem('playerName') || '';
 
 // Initialize screens and audio
 const gameMusic = document.querySelector('audio');
@@ -74,9 +92,47 @@ window.addEventListener('resize', resizeCanvas);
 // Load image and start immediately
 const birdImage = new Image();
 
+// Add global variable for current scores at the top with other game state
+let currentLeaderboardScores = [];
+
+// Initialize real-time leaderboard listener
+function initLeaderboard() {
+    const scoresRef = ref(db, 'scores');
+    const scoresQuery = query(scoresRef, 
+        orderByChild('score'),
+        limitToLast(10)
+    );
+    
+    onValue(scoresQuery, (snapshot) => {
+        const scores = [];
+        snapshot.forEach(childSnapshot => {
+            scores.unshift(childSnapshot.val());
+        });
+        
+        // Store scores globally
+        currentLeaderboardScores = scores;
+        
+        // Update welcome screen
+        const leaderboardList = document.getElementById('leaderboard-list');
+        if (leaderboardList) {
+            leaderboardList.innerHTML = scores.map((score, index) => 
+                `<div>${index + 1}. ${score.name}: ${score.score}</div>`
+            ).join('');
+        }
+        
+        // Update game over screen if game is over
+        if (gameOver) {
+            drawGameOver(scores);
+        }
+    });
+}
+
 function init() {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
+    
+    // Initialize real-time leaderboard
+    initLeaderboard();
     
     // Load bird image
     birdImage.onload = () => {
@@ -249,27 +305,7 @@ function draw(birdImage) {
     }
 
     if (gameOver) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = 'white';
-        
-        // Game Over text
-        ctx.font = '48px Arial';
-        const gameOverText = 'Game Over!';
-        const gameOverWidth = ctx.measureText(gameOverText).width;
-        ctx.fillText(gameOverText, (canvas.width - gameOverWidth) / 2, canvas.height/2);
-        
-        // Final Score text
-        ctx.font = '24px Arial';
-        const scoreText = `Final Score: ${score}`;
-        const scoreWidth = ctx.measureText(scoreText).width;
-        ctx.fillText(scoreText, (canvas.width - scoreWidth) / 2, canvas.height/2 + 40);
-        
-        // Restart instruction text
-        ctx.font = '16px Arial';
-        const restartText = 'Press Space or Tap to Restart';
-        const restartWidth = ctx.measureText(restartText).width;
-        ctx.fillText(restartText, (canvas.width - restartWidth) / 2, canvas.height/2 + 80);
+        drawGameOver(currentLeaderboardScores);
     }
 }
 
@@ -311,13 +347,83 @@ function handleGameOver() {
     // Update highest score
     if (score > highestScore) {
         highestScore = score;
-        // Save to cookie - expires in 1 year
         setCookie('highScore', highestScore, 365);
+        
+        // Only submit to leaderboard if it's a new personal best
+        submitScore(score);
     }
     
     setTimeout(() => {
         canRestart = true;
     }, 750);
+}
+
+async function submitScore(score) {
+    // Get existing score from Firebase if any
+    const scoresRef = ref(db, 'scores');
+    const scoresQuery = query(scoresRef, 
+        orderByChild('name'),
+        limitToLast(1)
+    );
+    
+    const snapshot = await get(query(scoresRef, orderByChild('name'), ...(playerName ? [limitToLast(1)] : [])));
+    let existingScore = null;
+    
+    snapshot.forEach(childSnapshot => {
+        if (childSnapshot.val().name === playerName) {
+            existingScore = {
+                key: childSnapshot.key,
+                ...childSnapshot.val()
+            };
+        }
+    });
+
+    // Ask for name if first time
+    if (!playerName) {
+        playerName = prompt('New high score! Enter your name:');
+        if (playerName) {
+            localStorage.setItem('playerName', playerName);
+        } else {
+            return; // User cancelled
+        }
+    }
+    
+    // Only update if it's better than their previous best
+    if (!existingScore || score > existingScore.score) {
+        if (existingScore) {
+            // Update existing score
+            const updateRef = ref(db, `scores/${existingScore.key}`);
+            await set(updateRef, {
+                name: playerName,
+                score: score,
+                timestamp: Date.now()
+            });
+        } else {
+            // Create new score
+            await push(scoresRef, {
+                name: playerName,
+                score: score,
+                timestamp: Date.now()
+            });
+        }
+    }
+}
+
+async function showLeaderboard() {
+    const scoresRef = ref(db, 'scores');
+    const scoresQuery = query(scoresRef, 
+        orderByChild('score'),
+        limitToLast(10)
+    );
+    
+    const snapshot = await get(scoresQuery);
+    const scores = [];
+    
+    snapshot.forEach(childSnapshot => {
+        scores.unshift(childSnapshot.val());
+    });
+    
+    return scores;
 }
 
 // Cookie helper functions
@@ -336,6 +442,43 @@ function getCookie(name) {
         if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
     }
     return null;
+}
+
+function drawGameOver(scores) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'white';
+    
+    // Game Over text
+    ctx.font = '48px Arial';
+    const gameOverText = 'Game Over!';
+    const gameOverWidth = ctx.measureText(gameOverText).width;
+    ctx.fillText(gameOverText, (canvas.width - gameOverWidth) / 2, canvas.height/2 - 80);
+    
+    // Final Score text
+    ctx.font = '24px Arial';
+    const scoreText = `Final Score: ${score}`;
+    const scoreWidth = ctx.measureText(scoreText).width;
+    ctx.fillText(scoreText, (canvas.width - scoreWidth) / 2, canvas.height/2 - 40);
+    
+    if (scores) {
+        // Draw leaderboard
+        ctx.font = '20px Arial';
+        ctx.fillText('Global Top 10:', (canvas.width - 100) / 2, canvas.height/2);
+        
+        ctx.font = '16px Arial';
+        scores.forEach((score, index) => {
+            const text = `${index + 1}. ${score.name}: ${score.score}`;
+            const textWidth = ctx.measureText(text).width;
+            ctx.fillText(text, (canvas.width - textWidth) / 2, canvas.height/2 + 30 + (index * 25));
+        });
+    }
+    
+    // Restart text at bottom
+    ctx.font = '16px Arial';
+    const restartText = 'Press Space or Tap to Restart';
+    const restartWidth = ctx.measureText(restartText).width;
+    ctx.fillText(restartText, (canvas.width - restartWidth) / 2, canvas.height - 40);
 }
 
 // Start the game
