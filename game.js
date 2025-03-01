@@ -359,25 +359,6 @@ function handleGameOver() {
 }
 
 async function submitScore(score) {
-    // Get existing score from Firebase if any
-    const scoresRef = ref(db, 'scores');
-    const scoresQuery = query(scoresRef, 
-        orderByChild('name'),
-        limitToLast(1)
-    );
-    
-    const snapshot = await get(query(scoresRef, orderByChild('name'), ...(playerName ? [limitToLast(1)] : [])));
-    let existingScore = null;
-    
-    snapshot.forEach(childSnapshot => {
-        if (childSnapshot.val().name === playerName) {
-            existingScore = {
-                key: childSnapshot.key,
-                ...childSnapshot.val()
-            };
-        }
-    });
-
     // Ask for name if first time
     if (!playerName) {
         playerName = prompt('New high score! Enter your name:');
@@ -387,6 +368,27 @@ async function submitScore(score) {
             return; // User cancelled
         }
     }
+
+    // Get existing score from Firebase if any
+    const scoresRef = ref(db, 'scores');
+    const scoresQuery = query(scoresRef, 
+        orderByChild('name'),
+        // We only need one result since names are unique
+        limitToLast(1)
+    );
+    
+    const snapshot = await get(scoresQuery);
+    let existingScore = null;
+    
+    snapshot.forEach(childSnapshot => {
+        const data = childSnapshot.val();
+        if (data.name === playerName) {
+            existingScore = {
+                key: childSnapshot.key,
+                ...data
+            };
+        }
+    });
     
     // Only update if it's better than their previous best
     if (!existingScore || score > existingScore.score) {
