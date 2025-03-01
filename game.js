@@ -9,7 +9,7 @@ let gameStarted = false;
 let gameOver = false;
 let canRestart = true;
 let score = 0;
-let highestScore = 0;
+let highestScore = parseInt(getCookie('highScore')) || 0;
 let lastPipeSpawn = 0;
 
 // Initialize screens and audio
@@ -311,11 +311,31 @@ function handleGameOver() {
     // Update highest score
     if (score > highestScore) {
         highestScore = score;
+        // Save to cookie - expires in 1 year
+        setCookie('highScore', highestScore, 365);
     }
     
     setTimeout(() => {
         canRestart = true;
     }, 750);
+}
+
+// Cookie helper functions
+function setCookie(name, value, days) {
+    const expires = new Date();
+    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+    document.cookie = name + '=' + value + ';expires=' + expires.toUTCString() + ';path=/';
+}
+
+function getCookie(name) {
+    const nameEQ = name + '=';
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+    }
+    return null;
 }
 
 // Start the game
