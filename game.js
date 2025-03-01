@@ -31,8 +31,8 @@ const pipes = [];
 let pipeWidth = 50;
 // Smaller gap for larger screens, minimum of 120px, maximum of 20% of height or 180px
 let pipeGap = Math.min(Math.max(120, window.innerHeight * 0.2), 180);
-// Faster spawn on larger screens, but not too fast
-let pipeSpawnInterval = Math.max(1200, Math.min(window.innerWidth * 0.6, 2000));
+// Fixed base spawn interval
+let pipeSpawnInterval = 2500;
 
 // Stars setup
 const stars = Array(100).fill().map(() => ({
@@ -50,8 +50,8 @@ function resizeCanvas() {
     pipeWidth = Math.min(50, canvas.width * 0.1);
     // Smaller gap for larger screens, minimum of 120px, maximum of 20% of height or 180px
     pipeGap = Math.min(Math.max(120, canvas.height * 0.2), 180);
-    // Faster spawn on larger screens, but not too fast
-    pipeSpawnInterval = Math.max(1200, Math.min(canvas.width * 0.6, 2000));
+    // Balanced spawn interval for all screen sizes
+    pipeSpawnInterval = Math.max(2000, Math.min(canvas.width, 3000));
     // Adjust bird size based on screen width
     bird.width = Math.min(35, canvas.width * 0.08);
     bird.height = (bird.width * 50) / 35;
@@ -151,8 +151,9 @@ function update(timestamp, birdImage) {
     bird.velocity += bird.gravity;
     bird.y += bird.velocity;
 
-    // Update pipes
-    const pipeSpeed = canvas.width * 0.003; // Make pipe speed relative to screen width
+    // Update pipes - fixed base speed with small screen size adjustment
+    const baseSpeed = 5; // Base pixels per frame
+    const pipeSpeed = baseSpeed + (canvas.width * 0.001); // Small screen size adjustment
     pipes.forEach((pipe, index) => {
         pipe.x -= pipeSpeed;
 
