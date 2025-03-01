@@ -29,8 +29,8 @@ const bird = {
 
 const pipes = [];
 let pipeWidth = 50;
-let pipeGap = 150;
-const pipeSpawnInterval = 1500;
+let pipeGap = Math.min(150, window.innerHeight * 0.2); // 20% of screen height, max 150px
+let pipeSpawnInterval = Math.max(1500, window.innerWidth * 0.8);
 
 // Stars setup
 const stars = Array(100).fill().map(() => ({
@@ -46,7 +46,9 @@ function resizeCanvas() {
     canvas.height = window.innerHeight;
     // Adjust pipe dimensions based on screen size
     pipeWidth = Math.min(50, canvas.width * 0.1);
-    pipeGap = Math.min(150, canvas.height * 0.25);
+    pipeGap = Math.min(150, canvas.height * 0.2); // 20% of screen height, max 150px
+    // Adjust spawn interval based on screen width
+    pipeSpawnInterval = Math.max(1500, canvas.width * 0.8);
     // Adjust bird size based on screen width
     bird.width = Math.min(35, canvas.width * 0.08);
     bird.height = (bird.width * 50) / 35;
@@ -102,8 +104,11 @@ function startGame(birdImage) {
     bird.y = canvas.height / 2;
     bird.velocity = 0;
     
-    gameMusic.currentTime = 0;
-    gameMusic.play().catch(e => console.log('Audio play failed:', e));
+    // Only try to play music if it was previously paused
+    if (gameMusic.paused) {
+        gameMusic.currentTime = 0;
+        gameMusic.play().catch(e => console.log('Audio play failed:', e));
+    }
     requestAnimationFrame((timestamp) => update(timestamp, birdImage));
 }
 
@@ -130,7 +135,6 @@ function handleTouch(e, birdImage) {
 
 function update(timestamp, birdImage) {
     if (gameOver) {
-        gameMusic.pause();
         return;
     }
 
@@ -155,6 +159,8 @@ function update(timestamp, birdImage) {
             (bird.y < pipe.topHeight || 
              bird.y + bird.height > pipe.topHeight + pipeGap)) {
             gameOver = true;
+            gameMusic.pause();
+            gameMusic.currentTime = 0;
         }
 
         // Score point
@@ -172,6 +178,8 @@ function update(timestamp, birdImage) {
     // Check boundaries
     if (bird.y < 0 || bird.y + bird.height > canvas.height) {
         gameOver = true;
+        gameMusic.pause();
+        gameMusic.currentTime = 0;
     }
 
     draw(birdImage);
@@ -274,7 +282,7 @@ function drawBackground() {
 }
 
 function spawnPipe() {
-    const minHeight = 50;
+    const minHeight = Math.min(50, canvas.height * 0.1); // Min height is 10% of screen height or 50px
     const maxHeight = canvas.height - pipeGap - minHeight;
     const height = Math.random() * (maxHeight - minHeight) + minHeight;
     
