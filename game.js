@@ -151,9 +151,12 @@ function update(timestamp, birdImage) {
     bird.velocity += bird.gravity;
     bird.y += bird.velocity;
 
-    // Update pipes - fixed base speed with small screen size adjustment
-    const baseSpeed = 5; // Base pixels per frame
-    const pipeSpeed = baseSpeed + (canvas.width * 0.001); // Small screen size adjustment
+    // Update pipes with fixed speed
+    const baseSpeed = 3; // Slower base speed
+    const maxSpeedAdjustment = 1; // Maximum additional speed based on screen size
+    const speedAdjustment = Math.min(canvas.width / 1920, 1) * maxSpeedAdjustment; // Scale based on typical desktop width
+    const pipeSpeed = baseSpeed + speedAdjustment;
+    
     pipes.forEach((pipe, index) => {
         pipe.x -= pipeSpeed;
 
