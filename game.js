@@ -44,6 +44,31 @@ birdImage.src = birdImageSrc;
 // Start button click handler
 startButton.addEventListener('click', startGame);
 
+// Add keyboard controls for starting game
+document.addEventListener('keydown', (e) => {
+    if ((e.code === 'Space' || e.code === 'Enter') && !gameStarted) {
+        startGame();
+        return;
+    }
+    
+    if (e.code === 'Space' && !gameOver) {
+        bird.velocity = bird.jump;
+    }
+    if (e.code === 'Space' && gameOver) {
+        // Reset game
+        bird.y = canvas.height / 2;
+        bird.velocity = 0;
+        pipes.length = 0;
+        score = 0;
+        gameOver = false;
+        lastPipeSpawn = 0;
+        // Restart music
+        gameMusic.currentTime = 0;
+        gameMusic.play().catch(e => console.log('Audio play failed:', e));
+        requestAnimationFrame(update);
+    }
+});
+
 const bird = {
     x: 50,
     y: canvas.height / 2,
@@ -206,26 +231,6 @@ function draw() {
         ctx.fillText(restartText, (canvas.width - restartWidth) / 2, canvas.height/2 + 80);
     }
 }
-
-// Handle jump
-document.addEventListener('keydown', (e) => {
-    if (e.code === 'Space' && !gameOver) {
-        bird.velocity = bird.jump;
-    }
-    if (e.code === 'Space' && gameOver) {
-        // Reset game
-        bird.y = canvas.height / 2;
-        bird.velocity = 0;
-        pipes.length = 0;
-        score = 0;
-        gameOver = false;
-        lastPipeSpawn = 0;
-        // Restart music
-        gameMusic.currentTime = 0;
-        gameMusic.play().catch(e => console.log('Audio play failed:', e));
-        requestAnimationFrame(update);
-    }
-});
 
 // Add touch support
 canvas.addEventListener('touchstart', (e) => {
