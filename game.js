@@ -7,7 +7,9 @@ ctx.imageSmoothingEnabled = false;  // This helps with GIF animation
 // Game state
 let gameStarted = false;
 let gameOver = false;
+let canRestart = true;
 let score = 0;
+let highestScore = 0;
 let lastPipeSpawn = 0;
 
 // Initialize screens and audio
@@ -101,6 +103,7 @@ function startGame(birdImage) {
     startScreen.style.display = 'none';
     gameStarted = true;
     gameOver = false;
+    canRestart = true;  // Reset restart flag
     score = 0;
     lastPipeSpawn = 0;
     pipes.length = 0;
@@ -120,7 +123,7 @@ function handleKeydown(e, birdImage) {
         startGame(birdImage);
     } else if (e.code === 'Space' && !gameOver) {
         bird.velocity = bird.jump;
-    } else if (e.code === 'Space' && gameOver) {
+    } else if (e.code === 'Space' && gameOver && canRestart) {
         startGame(birdImage);
     }
 }
@@ -131,7 +134,7 @@ function handleTouch(e, birdImage) {
         startGame(birdImage);
     } else if (!gameOver) {
         bird.velocity = bird.jump;
-    } else {
+    } else if (canRestart) {
         startGame(birdImage);
     }
 }
@@ -165,9 +168,7 @@ function update(timestamp, birdImage) {
             bird.x < pipe.x + pipeWidth && 
             (bird.y < pipe.topHeight || 
              bird.y + bird.height > pipe.topHeight + pipeGap)) {
-            gameOver = true;
-            gameMusic.pause();
-            gameMusic.currentTime = 0;
+            handleGameOver();
         }
 
         // Score point
@@ -184,9 +185,7 @@ function update(timestamp, birdImage) {
 
     // Check boundaries
     if (bird.y < 0 || bird.y + bird.height > canvas.height) {
-        gameOver = true;
-        gameMusic.pause();
-        gameMusic.currentTime = 0;
+        handleGameOver();
     }
 
     draw(birdImage);
@@ -245,6 +244,9 @@ function draw(birdImage) {
     ctx.fillStyle = 'white';
     ctx.font = '24px Arial';
     ctx.fillText(`Score: ${score}`, 10, 30);
+    if (highestScore > 0) {
+        ctx.fillText(`Highest Score: ${highestScore}`, 10, 60);
+    }
 
     if (gameOver) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -298,6 +300,22 @@ function spawnPipe() {
         topHeight: height,
         passed: false
     });
+}
+
+function handleGameOver() {
+    gameOver = true;
+    canRestart = false;
+    gameMusic.pause();
+    gameMusic.currentTime = 0;
+    
+    // Update highest score
+    if (score > highestScore) {
+        highestScore = score;
+    }
+    
+    setTimeout(() => {
+        canRestart = true;
+    }, 750);
 }
 
 // Start the game
