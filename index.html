@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Flappy Bird Clone</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fly Milady Fly!!</title>
     <style>
         * {
             margin: 0;
@@ -14,6 +15,13 @@
             position: fixed;
             width: 100%;
             height: 100%;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #1a1a3e;
         }
         canvas {
             display: block;
@@ -53,28 +61,36 @@
         }
         .start-button {
             padding: 15px 30px;
-            font-size: 20px;
-            background: #ffe115;
+            font-size: 24px;
+            background-color: #fff200;
             border: none;
             border-radius: 5px;
-            color: #1a1a3e;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: background-color 0.3s;
         }
         .start-button:hover {
-            transform: scale(1.1);
+            background-color: #ffe115;
+        }
+        .start-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .title {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #fff200;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
     </style>
 </head>
 <body>
     <div id="start-screen">
-        <div class="start-text">Ready to Play?</div>
-        <div style="font-size: 18px; margin-bottom: 20px;">Press SPACE or TAP to fly</div>
-        <button class="start-button">Start Game</button>
+        <h1 class="title">Fly Milady Fly!!</h1>
+        <button class="start-button" disabled>Loading...</button>
     </div>
     <canvas id="gameCanvas" width="480" height="640"></canvas>
     <div class="audio-controls">
