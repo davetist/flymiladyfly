@@ -41,10 +41,13 @@ const bird = {
     x: 0,
     y: 0,
     velocity: 0,
-    gravity: 0.5,
-    jump: -8,
+    gravity: 0.35,  // Reduced from 0.5 for less aggressive falling
+    jump: -6.5,    // Reduced from -8 for softer jumps
+    maxVelocity: 8, // Cap maximum fall speed
     width: 35,
-    height: 50
+    height: 50,
+    jumpCooldown: 0, // Add cooldown to prevent rapid jumps
+    minJumpInterval: 150 // Minimum time between jumps in ms
 };
 
 const pipes = [];
@@ -178,7 +181,10 @@ function handleKeydown(e, birdImage) {
     if ((e.code === 'Space' || e.code === 'Enter') && !gameStarted) {
         startGame(birdImage);
     } else if (e.code === 'Space' && !gameOver) {
-        bird.velocity = bird.jump;
+        if (bird.jumpCooldown === 0) {
+            bird.velocity = bird.jump;
+            bird.jumpCooldown = bird.minJumpInterval;
+        }
     } else if (e.code === 'Space' && gameOver && canRestart) {
         startGame(birdImage);
     }
@@ -189,7 +195,10 @@ function handleTouch(e, birdImage) {
     if (!gameStarted) {
         startGame(birdImage);
     } else if (!gameOver) {
-        bird.velocity = bird.jump;
+        if (bird.jumpCooldown === 0) {
+            bird.velocity = bird.jump;
+            bird.jumpCooldown = bird.minJumpInterval;
+        }
     } else if (canRestart) {
         startGame(birdImage);
     }
@@ -200,15 +209,29 @@ function update(timestamp, birdImage) {
         return;
     }
 
+    // Update bird physics
+    bird.velocity += bird.gravity;
+    
+    // Cap fall speed
+    bird.velocity = Math.min(bird.velocity, bird.maxVelocity);
+    
+    // Add slight upward boost when moving upward to maintain momentum
+    if (bird.velocity < 0) {
+        bird.velocity *= 0.95; // Reduce upward velocity more gradually
+    }
+    
+    bird.y += bird.velocity;
+    
+    // Update jump cooldown
+    if (bird.jumpCooldown > 0) {
+        bird.jumpCooldown = Math.max(0, bird.jumpCooldown - 16); // Assuming 60fps, 16ms per frame
+    }
+
     // Spawn pipes
     if (timestamp - lastPipeSpawn > pipeSpawnInterval) {
         spawnPipe();
         lastPipeSpawn = timestamp;
     }
-
-    // Update bird
-    bird.velocity += bird.gravity;
-    bird.y += bird.velocity;
 
     // Update pipes with fixed speed
     const baseSpeed = 3; // Slower base speed
@@ -268,40 +291,42 @@ function draw(birdImage) {
     // Reset image smoothing each frame as it can get reset
     ctx.imageSmoothingEnabled = false;
 
-    // Draw bird
-    ctx.drawImage(birdImage, bird.x, bird.y, bird.width, bird.height);
+    if (!gameOver) {
+        // Draw bird
+        ctx.drawImage(birdImage, bird.x, bird.y, bird.width, bird.height);
 
-    // Draw pipes
-    pipes.forEach(pipe => {
-        // Create gradient for 3D effect
-        const gradient = ctx.createLinearGradient(pipe.x, 0, pipe.x + pipeWidth, 0);
-        gradient.addColorStop(0, '#ffe115');
-        gradient.addColorStop(0.3, '#fff200');
-        gradient.addColorStop(1, '#ffd000');
-        
-        ctx.fillStyle = gradient;
-        
-        // Top pipe
-        ctx.beginPath();
-        ctx.rect(pipe.x, 0, pipeWidth, pipe.topHeight);
-        ctx.fill();
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        // Draw pipes
+        pipes.forEach(pipe => {
+            // Create gradient for 3D effect
+            const gradient = ctx.createLinearGradient(pipe.x, 0, pipe.x + pipeWidth, 0);
+            gradient.addColorStop(0, '#ffe115');
+            gradient.addColorStop(0.3, '#fff200');
+            gradient.addColorStop(1, '#ffd000');
+            
+            ctx.fillStyle = gradient;
+            
+            // Top pipe
+            ctx.beginPath();
+            ctx.rect(pipe.x, 0, pipeWidth, pipe.topHeight);
+            ctx.fill();
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
+            ctx.stroke();
 
-        // Bottom pipe
-        ctx.beginPath();
-        ctx.rect(pipe.x, pipe.topHeight + pipeGap, pipeWidth, canvas.height - pipe.topHeight - pipeGap);
-        ctx.fill();
-        ctx.stroke();
-    });
+            // Bottom pipe
+            ctx.beginPath();
+            ctx.rect(pipe.x, pipe.topHeight + pipeGap, pipeWidth, canvas.height - pipe.topHeight - pipeGap);
+            ctx.fill();
+            ctx.stroke();
+        });
 
-    // Draw score
-    ctx.fillStyle = 'white';
-    ctx.font = '24px Arial';
-    ctx.fillText(`Score: ${score}`, 10, 30);
-    if (highestScore > 0) {
-        ctx.fillText(`Highest Score: ${highestScore}`, 10, 60);
+        // Draw score
+        ctx.fillStyle = 'white';
+        ctx.font = '24px Arial';
+        ctx.fillText(`Score: ${score}`, 10, 30);
+        if (highestScore > 0) {
+            ctx.fillText(`Highest Score: ${highestScore}`, 10, 60);
+        }
     }
 
     if (gameOver) {
@@ -447,6 +472,10 @@ function getCookie(name) {
 }
 
 function drawGameOver(scores) {
+    // Clear the entire screen first
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw the dark background
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = 'white';
@@ -463,7 +492,7 @@ function drawGameOver(scores) {
     const scoreWidth = ctx.measureText(scoreText).width;
     ctx.fillText(scoreText, (canvas.width - scoreWidth) / 2, canvas.height/2 - 40);
     
-    if (scores) {
+    if (scores && scores.length > 0) {
         // Draw leaderboard
         ctx.font = '20px Arial';
         ctx.fillText('Global Top 10:', (canvas.width - 100) / 2, canvas.height/2);
