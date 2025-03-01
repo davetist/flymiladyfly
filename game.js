@@ -4,88 +4,33 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;  // This helps with GIF animation
 
+// Game state
+let gameStarted = false;
+let gameOver = false;
+let score = 0;
+let lastPipeSpawn = 0;
+
 // Initialize screens and audio
 const gameMusic = document.querySelector('audio');
-const loadingScreen = document.getElementById('loading-screen');
 const startScreen = document.getElementById('start-screen');
 const startButton = document.querySelector('.start-button');
 gameMusic.volume = 0.75; // Set initial volume
 
-// Wait for both audio and image to load before starting
-const birdImage = new Image();
-let imageLoaded = false;
-let gameStarted = false;
-
-function showStartScreen() {
-    loadingScreen.style.display = 'none';
-    startScreen.style.display = 'flex';
-}
-
-function startGame() {
-    startScreen.style.display = 'none';
-    gameStarted = true;
-    gameMusic.play().catch(e => console.log('Audio play failed:', e));
-    requestAnimationFrame(update);
-}
-
-function checkAllLoaded() {
-    if (imageLoaded) {
-        showStartScreen();
-    }
-}
-
-// Image loading
-birdImage.onload = () => {
-    imageLoaded = true;
-    checkAllLoaded();
-};
-birdImage.src = birdImageSrc;
-
-// Start button click handler
-startButton.addEventListener('click', startGame);
-
-// Add keyboard controls for starting game
-document.addEventListener('keydown', (e) => {
-    if ((e.code === 'Space' || e.code === 'Enter') && !gameStarted) {
-        startGame();
-        return;
-    }
-    
-    if (e.code === 'Space' && !gameOver) {
-        bird.velocity = bird.jump;
-    }
-    if (e.code === 'Space' && gameOver) {
-        // Reset game
-        bird.y = canvas.height / 2;
-        bird.velocity = 0;
-        pipes.length = 0;
-        score = 0;
-        gameOver = false;
-        lastPipeSpawn = 0;
-        // Restart music
-        gameMusic.currentTime = 0;
-        gameMusic.play().catch(e => console.log('Audio play failed:', e));
-        requestAnimationFrame(update);
-    }
-});
-
+// Game objects
 const bird = {
-    x: 50,
-    y: canvas.height / 2,
+    x: 0,
+    y: 0,
     velocity: 0,
     gravity: 0.5,
     jump: -8,
-    width: 35,  // Scaled down but maintaining ratio
-    height: 50  // height ≈ width * (282/200)
+    width: 35,
+    height: 50
 };
 
 const pipes = [];
-const pipeWidth = 50;
-const pipeGap = 150;
+let pipeWidth = 50;
+let pipeGap = 150;
 const pipeSpawnInterval = 1500;
-let lastPipeSpawn = 0;
-let score = 0;
-let gameOver = false;
 
 // Stars setup
 const stars = Array(100).fill().map(() => ({
@@ -95,19 +40,95 @@ const stars = Array(100).fill().map(() => ({
     brightness: Math.random()
 }));
 
-function spawnPipe() {
-    const minHeight = 50;
-    const maxHeight = canvas.height - pipeGap - minHeight;
-    const height = Math.random() * (maxHeight - minHeight) + minHeight;
+// Set canvas size to window size
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    // Adjust pipe dimensions based on screen size
+    pipeWidth = Math.min(50, canvas.width * 0.1);
+    pipeGap = Math.min(150, canvas.height * 0.25);
+    // Adjust bird size based on screen width
+    bird.width = Math.min(35, canvas.width * 0.08);
+    bird.height = (bird.width * 50) / 35;
+    bird.x = canvas.width * 0.1;
+    bird.y = canvas.height / 2;
     
-    pipes.push({
-        x: canvas.width,
-        topHeight: height,
-        passed: false
+    // Reposition stars
+    stars.forEach(star => {
+        star.x = Math.random() * canvas.width;
+        star.y = Math.random() * canvas.height;
     });
 }
 
-function update(timestamp) {
+// Call once at start and add resize listener
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// Load image and start immediately
+const birdImage = new Image();
+
+function init() {
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Load bird image
+    birdImage.onload = () => {
+        console.log('Image loaded');
+        startButton.disabled = false;
+        startButton.textContent = 'Start Game';
+        // Start background animation
+        requestAnimationFrame(animateBackground);
+    };
+    birdImage.src = birdImageSrc;
+
+    // Event listeners
+    startButton.addEventListener('click', () => startGame(birdImage));
+    document.addEventListener('keydown', (e) => handleKeydown(e, birdImage));
+    canvas.addEventListener('touchstart', (e) => handleTouch(e, birdImage));
+}
+
+function startGame(birdImage) {
+    if (!birdImage.complete) {
+        console.log('Image still loading...');
+        return;
+    }
+    console.log('Starting game...');
+    startScreen.style.display = 'none';
+    gameStarted = true;
+    gameOver = false;
+    score = 0;
+    lastPipeSpawn = 0;
+    pipes.length = 0;
+    bird.y = canvas.height / 2;
+    bird.velocity = 0;
+    
+    gameMusic.currentTime = 0;
+    gameMusic.play().catch(e => console.log('Audio play failed:', e));
+    requestAnimationFrame((timestamp) => update(timestamp, birdImage));
+}
+
+function handleKeydown(e, birdImage) {
+    if ((e.code === 'Space' || e.code === 'Enter') && !gameStarted) {
+        startGame(birdImage);
+    } else if (e.code === 'Space' && !gameOver) {
+        bird.velocity = bird.jump;
+    } else if (e.code === 'Space' && gameOver) {
+        startGame(birdImage);
+    }
+}
+
+function handleTouch(e, birdImage) {
+    e.preventDefault();
+    if (!gameStarted) {
+        startGame(birdImage);
+    } else if (!gameOver) {
+        bird.velocity = bird.jump;
+    } else {
+        startGame(birdImage);
+    }
+}
+
+function update(timestamp, birdImage) {
     if (gameOver) {
         gameMusic.pause();
         return;
@@ -124,8 +145,9 @@ function update(timestamp) {
     bird.y += bird.velocity;
 
     // Update pipes
+    const pipeSpeed = canvas.width * 0.003; // Make pipe speed relative to screen width
     pipes.forEach((pipe, index) => {
-        pipe.x -= 3;
+        pipe.x -= pipeSpeed;
 
         // Check collision
         if (bird.x + bird.width > pipe.x && 
@@ -152,11 +174,13 @@ function update(timestamp) {
         gameOver = true;
     }
 
-    draw();
-    requestAnimationFrame(update);
+    draw(birdImage);
+    if (!gameOver) {
+        requestAnimationFrame((t) => update(t, birdImage));
+    }
 }
 
-function draw() {
+function draw(birdImage) {
     // Clear canvas
     ctx.fillStyle = '#1a1a3e';  // Purple-blue background
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -226,30 +250,11 @@ function draw() {
         
         // Restart instruction text
         ctx.font = '16px Arial';
-        const restartText = 'Press Space to Restart';
+        const restartText = 'Press Space or Tap to Restart';
         const restartWidth = ctx.measureText(restartText).width;
         ctx.fillText(restartText, (canvas.width - restartWidth) / 2, canvas.height/2 + 80);
     }
 }
-
-// Add touch support
-canvas.addEventListener('touchstart', (e) => {
-    e.preventDefault(); // Prevent scrolling
-    if (!gameOver) {
-        bird.velocity = bird.jump;
-    } else {
-        // Reset game on touch when game is over
-        bird.y = canvas.height / 2;
-        bird.velocity = 0;
-        pipes.length = 0;
-        score = 0;
-        gameOver = false;
-        lastPipeSpawn = 0;
-        gameMusic.currentTime = 0;
-        gameMusic.play().catch(e => console.log('Audio play failed:', e));
-        requestAnimationFrame(update);
-    }
-});
 
 // Draw initial background
 function drawBackground() {
@@ -264,14 +269,21 @@ function drawBackground() {
             ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
             ctx.fill();
         });
+        requestAnimationFrame(drawBackground);
     }
 }
 
-// Start animating background even before game starts
-function animateBackground() {
-    if (!gameStarted) {
-        drawBackground();
-        requestAnimationFrame(animateBackground);
-    }
+function spawnPipe() {
+    const minHeight = 50;
+    const maxHeight = canvas.height - pipeGap - minHeight;
+    const height = Math.random() * (maxHeight - minHeight) + minHeight;
+    
+    pipes.push({
+        x: canvas.width,
+        topHeight: height,
+        passed: false
+    });
 }
-animateBackground();
+
+// Start the game
+init();
