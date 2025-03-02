@@ -126,21 +126,25 @@ function initLeaderboard() {
             const data = childSnapshot.val();
             scores.unshift({
                 ...data,
-                name: sanitizeName(data.name) // Sanitize when storing
+                name: sanitizeName(data.name)
             });
         });
         
         currentLeaderboardScores = scores;
         
-        const leaderboardList = document.getElementById('leaderboard-list');
-        if (leaderboardList) {
-            leaderboardList.innerHTML = scores.map((score, index) => 
-                `<div>${index + 1}. ${sanitizeName(score.name)}: ${score.score}</div>` // Sanitize when displaying
-            ).join('');
-        }
-        
-        if (gameOver) {
-            drawGameOver(scores);
+        // Only update UI elements if we're not in an active game
+        if (!gameStarted || gameOver) {
+            const leaderboardList = document.getElementById('leaderboard-list');
+            if (leaderboardList) {
+                leaderboardList.innerHTML = scores.map((score, index) => 
+                    `<div>${index + 1}. ${sanitizeName(score.name)}: ${score.score}</div>`
+                ).join('');
+            }
+            
+            // Only draw game over screen if the game is actually over
+            if (gameOver) {
+                drawGameOver(scores);
+            }
         }
     });
 }
