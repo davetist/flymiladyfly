@@ -422,14 +422,15 @@ async function submitScore(score) {
     }
 
     try {
-        // Get existing score from Firebase if any
         const scoresRef = ref(db, 'scores');
-        const scoresQuery = query(scoresRef, 
+        
+        // Find existing score for this player
+        const nameQuery = query(scoresRef, 
             orderByChild('name'),
             limitToLast(1)
         );
         
-        const snapshot = await get(scoresQuery);
+        const snapshot = await get(nameQuery);
         let existingScore = null;
         
         snapshot.forEach(childSnapshot => {
@@ -442,54 +443,27 @@ async function submitScore(score) {
             }
         });
 
-        // Check for rate limiting
-        const recentScoresQuery = query(scoresRef,
-            orderByChild('timestamp'),
-            // Check last minute
-            startAt(Date.now() - 60000)
-        );
-        
-        const recentScores = await get(recentScoresQuery);
-        let hasRecentSubmission = false;
-        recentScores.forEach(childSnapshot => {
-            const data = childSnapshot.val();
-            if (data.name === playerName) {
-                hasRecentSubmission = true;
-            }
-        });
+        const scoreData = {
+            name: playerName,
+            score: score,
+            timestamp: Date.now()
+        };
 
-        if (hasRecentSubmission) {
-            alert('Please wait a minute between submissions');
-            return;
-        }
-
-        // Only update if it's better than their previous best
-        if (!existingScore || score > existingScore.score) {
-            // Validate score jump
-            if (existingScore && score > existingScore.score + 50) {
-                console.log('Score increase too large');
-                return;
-            }
-
-            if (existingScore) {
-                // Update existing score
+        if (existingScore) {
+            // Only update if new score is higher
+            if (score > existingScore.score) {
                 const updateRef = ref(db, `scores/${existingScore.key}`);
-                await set(updateRef, {
-                    name: playerName,
-                    score: score,
-                    timestamp: Date.now()
-                });
-            } else {
-                // Create new score
-                await push(scoresRef, {
-                    name: playerName,
-                    score: score,
-                    timestamp: Date.now()
-                });
+                await set(updateRef, scoreData);
+                console.log('Score updated successfully');
             }
+        } else {
+            // Create new score
+            await push(scoresRef, scoreData);
+            console.log('New score created successfully');
         }
     } catch (error) {
         console.error('Error submitting score:', error);
+        alert('Error submitting score. Please try again.');
     }
 }
 
