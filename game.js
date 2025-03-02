@@ -100,11 +100,14 @@ let currentLeaderboardScores = [];
 
 function sanitizeName(name) {
     if (!name) return '';
-    // Remove HTML tags and limit length
     return name
-        .replace(/[<>]/g, '') // Remove < and > to prevent HTML tags
+        .replace(/[<>]/g, '') // Remove < and >
         .replace(/[&'"]/g, '') // Remove quotes and ampersands
         .replace(/[^\w\s-]/g, '') // Only allow letters, numbers, spaces, and hyphens
+        .replace(/javascript/gi, '') // Remove 'javascript' keyword
+        .replace(/script/gi, '') // Remove 'script' keyword
+        .replace(/on\w+=/gi, '') // Remove event handlers
+        .replace(/data:/gi, '') // Remove data URLs
         .trim()
         .slice(0, 20); // Limit length to 20 characters
 }
@@ -121,23 +124,21 @@ function initLeaderboard() {
         const scores = [];
         snapshot.forEach(childSnapshot => {
             const data = childSnapshot.val();
-            // Sanitize name when displaying
-            data.name = sanitizeName(data.name);
-            scores.unshift(data);
+            scores.unshift({
+                ...data,
+                name: sanitizeName(data.name) // Sanitize when storing
+            });
         });
         
-        // Store scores globally
         currentLeaderboardScores = scores;
         
-        // Update welcome screen
         const leaderboardList = document.getElementById('leaderboard-list');
         if (leaderboardList) {
             leaderboardList.innerHTML = scores.map((score, index) => 
-                `<div>${index + 1}. ${score.name}: ${score.score}</div>`
+                `<div>${index + 1}. ${sanitizeName(score.name)}: ${score.score}</div>` // Sanitize when displaying
             ).join('');
         }
         
-        // Update game over screen if game is over
         if (gameOver) {
             drawGameOver(scores);
         }
@@ -545,7 +546,7 @@ function drawGameOver(scores) {
         const scoreFontSize = Math.min(16, screenHeight * 0.03);
         ctx.font = `${scoreFontSize}px Arial`;
         scores.forEach((score, index) => {
-            const text = `${index + 1}. ${score.name}: ${score.score}`;
+            const text = `${index + 1}. ${sanitizeName(score.name)}: ${score.score}`; // Sanitize when displaying
             const textWidth = ctx.measureText(text).width;
             ctx.fillText(text, (canvas.width - textWidth) / 2, currentY);
             currentY += lineSpacing;
