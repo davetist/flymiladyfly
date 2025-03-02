@@ -98,6 +98,17 @@ const birdImage = new Image();
 // Add global variable for current scores at the top with other game state
 let currentLeaderboardScores = [];
 
+function sanitizeName(name) {
+    if (!name) return '';
+    // Remove HTML tags and limit length
+    return name
+        .replace(/[<>]/g, '') // Remove < and > to prevent HTML tags
+        .replace(/[&'"]/g, '') // Remove quotes and ampersands
+        .replace(/[^\w\s-]/g, '') // Only allow letters, numbers, spaces, and hyphens
+        .trim()
+        .slice(0, 20); // Limit length to 20 characters
+}
+
 // Initialize real-time leaderboard listener
 function initLeaderboard() {
     const scoresRef = ref(db, 'scores');
@@ -109,7 +120,10 @@ function initLeaderboard() {
     onValue(scoresQuery, (snapshot) => {
         const scores = [];
         snapshot.forEach(childSnapshot => {
-            scores.unshift(childSnapshot.val());
+            const data = childSnapshot.val();
+            // Sanitize name when displaying
+            data.name = sanitizeName(data.name);
+            scores.unshift(data);
         });
         
         // Store scores globally
@@ -386,9 +400,15 @@ function handleGameOver() {
 async function submitScore(score) {
     // Ask for name if first time
     if (!playerName) {
-        playerName = prompt('New high score! Enter your name:');
-        if (playerName) {
-            localStorage.setItem('playerName', playerName);
+        let inputName = prompt('New high score! Enter your name:');
+        if (inputName) {
+            inputName = sanitizeName(inputName);
+            if (inputName) {
+                playerName = inputName;
+                localStorage.setItem('playerName', playerName);
+            } else {
+                return; // Invalid name
+            }
         } else {
             return; // User cancelled
         }
