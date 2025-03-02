@@ -1,6 +1,6 @@
 import { image as birdImageSrc } from './milady.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js';
-import { getDatabase, ref, push, query, orderByChild, limitToLast, get, onValue, set } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-database.js';
+import { getDatabase, ref, push, query, orderByChild, limitToLast, get, onValue, set, startAt } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-database.js';
 
 // Firebase config
 const firebaseConfig = {
@@ -398,61 +398,98 @@ function handleGameOver() {
 }
 
 async function submitScore(score) {
+    // Validate score
+    if (score < 0 || score > 1000) {
+        console.log('Invalid score');
+        return;
+    }
+
     // Ask for name if first time
     if (!playerName) {
-        let inputName = prompt('New high score! Enter your name:');
+        let inputName = prompt('New high score! Enter your name (2-20 characters):');
         if (inputName) {
             inputName = sanitizeName(inputName);
-            if (inputName) {
+            if (inputName && inputName.length >= 2) {
                 playerName = inputName;
                 localStorage.setItem('playerName', playerName);
             } else {
-                return; // Invalid name
+                alert('Name must be 2-20 characters long and contain only letters, numbers, spaces, or hyphens');
+                return;
             }
         } else {
             return; // User cancelled
         }
     }
 
-    // Get existing score from Firebase if any
-    const scoresRef = ref(db, 'scores');
-    const scoresQuery = query(scoresRef, 
-        orderByChild('name'),
-        // We only need one result since names are unique
-        limitToLast(1)
-    );
-    
-    const snapshot = await get(scoresQuery);
-    let existingScore = null;
-    
-    snapshot.forEach(childSnapshot => {
-        const data = childSnapshot.val();
-        if (data.name === playerName) {
-            existingScore = {
-                key: childSnapshot.key,
-                ...data
-            };
+    try {
+        // Get existing score from Firebase if any
+        const scoresRef = ref(db, 'scores');
+        const scoresQuery = query(scoresRef, 
+            orderByChild('name'),
+            limitToLast(1)
+        );
+        
+        const snapshot = await get(scoresQuery);
+        let existingScore = null;
+        
+        snapshot.forEach(childSnapshot => {
+            const data = childSnapshot.val();
+            if (data.name === playerName) {
+                existingScore = {
+                    key: childSnapshot.key,
+                    ...data
+                };
+            }
+        });
+
+        // Check for rate limiting
+        const recentScoresQuery = query(scoresRef,
+            orderByChild('timestamp'),
+            // Check last minute
+            startAt(Date.now() - 60000)
+        );
+        
+        const recentScores = await get(recentScoresQuery);
+        let hasRecentSubmission = false;
+        recentScores.forEach(childSnapshot => {
+            const data = childSnapshot.val();
+            if (data.name === playerName) {
+                hasRecentSubmission = true;
+            }
+        });
+
+        if (hasRecentSubmission) {
+            alert('Please wait a minute between submissions');
+            return;
         }
-    });
-    
-    // Only update if it's better than their previous best
-    if (!existingScore || score > existingScore.score) {
-        if (existingScore) {
-            // Update existing score
-            const updateRef = ref(db, `scores/${existingScore.key}`);
-            await set(updateRef, {
-                name: playerName,
-                score: score,
-                timestamp: Date.now()
-            });
-        } else {
-            // Create new score
-            await push(scoresRef, {
-                name: playerName,
-                score: score,
-                timestamp: Date.now()
-            });
+
+        // Only update if it's better than their previous best
+        if (!existingScore || score > existingScore.score) {
+            // Validate score jump
+            if (existingScore && score > existingScore.score + 50) {
+                console.log('Score increase too large');
+                return;
+            }
+
+            if (existingScore) {
+                // Update existing score
+                const updateRef = ref(db, `scores/${existingScore.key}`);
+                await set(updateRef, {
+                    name: playerName,
+                    score: score,
+                    timestamp: Date.now()
+                });
+            } else {
+                // Create new score
+                await push(scoresRef, {
+                    name: playerName,
+                    score: score,
+                    timestamp: Date.now()
+                });
+            }
         }
+    } catch (error) {
+        console.error('Error submitting score:', error);
     }
 }
 
